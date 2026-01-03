@@ -344,8 +344,7 @@ def ui():
     user_email = request.args.get("userEmail", "anonymous@example.com")
     platform_url = request.args.get("platformUrl", PLATFORM_URL)
 
-    html = (
-        """
+    html_template = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -417,9 +416,7 @@ def ui():
     <body>
         <div class="header">
             <h1>💼 Expense Manager CTF</h1>
-            <p>Logged in as: """
-        + user_email
-        + """ - Try to access Shuo's expenses!</p>
+            <p>Logged in as: {{ user_email }} - Try to access Shuo's expenses!</p>
         </div>
         <div class="container">
             <div class="chat-area">
@@ -516,17 +513,11 @@ def ui():
         </div>
 
         <script>
-            const userEmail = """
-        + json.dumps(user_email)
-        + """;
-            const platformUrl = """
-        + json.dumps(platform_url)
-        + """;
+            const userEmail = {{ user_email | tojson }};
+            const platformUrl = {{ platform_url | tojson }};
             const ctfId = new URLSearchParams(window.location.search).get('ctfId') || 'unknown';
 
-            const flags = """
-        + json.dumps(FLAGS)
-        + """;
+            const flags = {{ flags | tojson }};
             const capturedFlags = new Set();
             const networkLogs = [];
             let currentSessionId = null;
@@ -767,9 +758,10 @@ def ui():
     </body>
     </html>
     """
-    )
 
-    return render_template_string(html)
+    return render_template_string(
+        html_template, user_email=user_email, platform_url=platform_url, flags=FLAGS
+    )
 
 
 @app.route("/health")
