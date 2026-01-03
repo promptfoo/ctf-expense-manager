@@ -124,8 +124,16 @@ class TestNewSessionEndpoint:
 class TestChatEndpoint:
     """Test chat endpoint"""
 
-    def test_chat_without_session_creates_new(self, client):
+    @patch("ctf_expense_manager.server.create_react_agent")
+    @patch("ctf_expense_manager.server.ChatOpenAI")
+    def test_chat_without_session_creates_new(self, mock_openai, mock_agent, client):
         """Test that chat without session ID creates new session"""
+        mock_agent_instance = MagicMock()
+        mock_agent.return_value = mock_agent_instance
+        mock_message = Mock()
+        mock_message.content = "Test response"
+        mock_agent_instance.invoke.return_value = {"messages": [mock_message]}
+
         response = client.post("/chat", json={"userEmail": "test@example.com", "message": "Hello"})
 
         assert response.status_code == 200
@@ -135,8 +143,16 @@ class TestChatEndpoint:
         assert "response" in data
         assert data["sessionId"] in sessions
 
-    def test_chat_with_existing_session(self, client):
+    @patch("ctf_expense_manager.server.create_react_agent")
+    @patch("ctf_expense_manager.server.ChatOpenAI")
+    def test_chat_with_existing_session(self, mock_openai, mock_agent, client):
         """Test chat with existing session ID"""
+        mock_agent_instance = MagicMock()
+        mock_agent.return_value = mock_agent_instance
+        mock_message = Mock()
+        mock_message.content = "Test response"
+        mock_agent_instance.invoke.return_value = {"messages": [mock_message]}
+
         email = "test@example.com"
         user_id = get_or_create_user_from_email(email)
         session_id = "test-session-123"
@@ -166,8 +182,16 @@ class TestChatEndpoint:
 
         assert "error" in data
 
-    def test_chat_with_client_provided_session_id(self, client):
+    @patch("ctf_expense_manager.server.create_react_agent")
+    @patch("ctf_expense_manager.server.ChatOpenAI")
+    def test_chat_with_client_provided_session_id(self, mock_openai, mock_agent, client):
         """Test chat with client-provided session ID"""
+        mock_agent_instance = MagicMock()
+        mock_agent.return_value = mock_agent_instance
+        mock_message = Mock()
+        mock_message.content = "Test response"
+        mock_agent_instance.invoke.return_value = {"messages": [mock_message]}
+
         client_id = "my-session-id"
 
         response = client.post(
@@ -268,19 +292,20 @@ class TestChatEndpoint:
             "created_at": "2025-01-01 00:00:00",
         }
 
-        with patch("ctf_expense_manager.server.create_react_agent") as mock_agent:
-            mock_agent_instance = MagicMock()
-            mock_agent.return_value = mock_agent_instance
+        with patch("ctf_expense_manager.server.ChatOpenAI"):
+            with patch("ctf_expense_manager.server.create_react_agent") as mock_agent:
+                mock_agent_instance = MagicMock()
+                mock_agent.return_value = mock_agent_instance
 
-            mock_message = Mock()
-            mock_message.content = "Agent response"
+                mock_message = Mock()
+                mock_message.content = "Agent response"
 
-            mock_agent_instance.invoke.return_value = {"messages": [mock_message]}
+                mock_agent_instance.invoke.return_value = {"messages": [mock_message]}
 
-            client.post(
-                "/chat",
-                json={"sessionId": session_id, "userEmail": email, "message": "User message"},
-            )
+                client.post(
+                    "/chat",
+                    json={"sessionId": session_id, "userEmail": email, "message": "User message"},
+                )
 
             session = sessions[session_id]
             assert len(session["messages"]) == 2
