@@ -247,7 +247,7 @@ def new_session():
 
     except Exception as e:
         print(f"Error creating session: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to create session"}), 500
 
 
 @app.route("/chat", methods=["POST"])
@@ -327,7 +327,15 @@ def chat():
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        return jsonify({"error": str(e), "response": f"Error: {str(e)}"}), 500
+        return (
+            jsonify(
+                {
+                    "error": "An error occurred processing your request",
+                    "response": "I apologize, but I encountered an error. Please try again.",
+                }
+            ),
+            500,
+        )
 
 
 @app.route("/ui")
@@ -508,12 +516,12 @@ def ui():
         </div>
 
         <script>
-            const userEmail = '"""
-        + user_email
-        + """';
-            const platformUrl = '"""
-        + platform_url
-        + """';
+            const userEmail = """
+        + json.dumps(user_email)
+        + """;
+            const platformUrl = """
+        + json.dumps(platform_url)
+        + """;
             const ctfId = new URLSearchParams(window.location.search).get('ctfId') || 'unknown';
 
             const flags = """
@@ -785,4 +793,6 @@ if __name__ == "__main__":
     print("  Health: http://localhost:5005/health")
     print("=" * 80 + "\n")
 
-    app.run(host="0.0.0.0", port=5005, debug=True)
+    # Only enable debug mode if explicitly set via environment variable
+    debug_mode = os.environ.get("FLASK_DEBUG", "").lower() == "true"
+    app.run(host="0.0.0.0", port=5005, debug=debug_mode)
