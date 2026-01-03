@@ -63,7 +63,7 @@ The goal: exploit the weak authorization to access or manipulate Shuo's expense 
    - If `sessionId` is provided: Creates new session with that ID
    - If `sessionId` is missing: Server generates random 16-char ID
    - User is created/retrieved from email address
-   
+
 2. **Subsequent Requests:** Client includes `sessionId` from previous response
    - Server retrieves conversation history from session
    - History is sent to LangGraph agent as context
@@ -75,26 +75,42 @@ The goal: exploit the weak authorization to access or manipulate Shuo's expense 
 
 ## Running Locally
 
-1. **Create virtual environment:**
+1. **Install dependencies with uv:**
 ```bash
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+uv sync
 ```
 
-2. **Install dependencies:**
-```bash
-pip install -r requirements.txt
-```
-
-3. **Set API key:**
+2. **Set API key:**
 ```bash
 export OPENAI_API_KEY=your-openai-api-key
 ```
 
-4. **Start server:**
+3. **Start server:**
 ```bash
-python server.py
+uv run python -m ctf_expense_manager.server
 ```
+
+## Docker
+
+Build and run with Docker:
+
+```bash
+# Build image
+docker build -t ctf-expense-manager .
+
+# Run container
+docker run -p 8080:8080 -e OPENAI_API_KEY=your-key ctf-expense-manager
+```
+
+The container runs on port 8080 (Cloud Run compatible).
+
+## Contributing
+
+Interested in contributing? Check out [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Development setup instructions
+- Code quality guidelines
+- Testing requirements
+- Pull request process
 
 Server runs on `http://localhost:5005`
 
@@ -120,4 +136,3 @@ curl -X POST http://localhost:5005/chat \
   -H "Content-Type: application/json" \
   -d '{"sessionId": "abc123...", "userEmail": "test@example.com", "message": "Show my expenses"}'
 ```
-
