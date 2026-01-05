@@ -1,0 +1,106 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'src/**'
+      - 'pyproject.toml'
+      - '.github/workflows/docker.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ctf-expense-manager:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test image - Check Python version
+        run: |
+          docker run --rm ctf-expense-manager:test python --version
+          docker run --rm ctf-expense-manager:test python --version | grep "3.14"
+
+      - name: Test image - Verify package installed
+        run: |
+          docker run --rm ctf-expense-manager:test python -c "import ctf_expense_manager; print(ctf_expense_manager.__version__)"
+
+      - name: Test image - Check dependencies
+        run: |
+          docker run --rm ctf-expense-manager:test python -c "import flask, langchain, openai; print('Dependencies OK')"
+
+      - name: Start container and test health endpoint
+        run: |
+          # Start container in background
+          docker run -d --name test-container -p 8080:8080 \
+            -e OPENAI_API_KEY=sk-test-dummy-key-for-health-check \
+            ctf-expense-manager:test
+
+          # Wait for startup
+          sleep 5
+
+          # Test health endpoint
+          curl -f http://localhost:8080/health || (docker logs test-container && exit 1)
+
+          # Cleanup
+          docker stop test-container
+          docker rm test-container
+
+      - name: Check image size
+        run: |
+          SIZE=$(docker images ctf-expense-manager:test --format "{{.Size}}")
+          echo "Image size: $SIZE"
+          # Warn if image is larger than 500MB
+          SIZE_MB=$(docker images ctf-expense-manager:test --format "{{.Size}}" | sed 's/MB//' | sed 's/GB/*1024/' | bc 2>/dev/null || echo "0")
+          if [ "$SIZE_MB" != "0" ] && [ "$(echo "$SIZE_MB > 500" | bc)" -eq 1 ]; then
+            echo "::warning::Docker image is larger than 500MB ($SIZE)"
+          fi
+
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ctf-expense-manager:scan
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ctf-expense-manager:scan
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Trivy in table mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ctf-expense-manager:scan
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
